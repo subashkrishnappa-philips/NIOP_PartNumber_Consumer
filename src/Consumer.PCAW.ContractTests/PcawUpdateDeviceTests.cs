@@ -48,6 +48,7 @@ public class PcawUpdateDeviceTests
             .WithJsonBody(new
             {
                 SerialNumber = "SN-PCAW-2024-100",
+               NewPartNumber = "PN-BEAT-5678-REV2",
                 Username = "pcaw.workflow.engine",
                 Org = "philips"
             })
@@ -68,6 +69,7 @@ public class PcawUpdateDeviceTests
             var response = await client.UpdateDeviceInformationAsync(new UpdateDeviceInformationRequest
             {
                 SerialNumber = "SN-PCAW-2024-100",
+               NewPartNumber = "PN-BEAT-5678-REV2",
                 Username = "pcaw.workflow.engine",
                 Org = "philips"
             });
@@ -91,6 +93,7 @@ public class PcawUpdateDeviceTests
             .WithJsonBody(new
             {
                 SerialNumber = "",
+                NewPartNumber = "PN-BEAT-5678-REV2",
                 Username = "pcaw.workflow.engine",
                 Org = "philips"
             })
@@ -110,6 +113,7 @@ public class PcawUpdateDeviceTests
             var response = await client.UpdateDeviceInformationAsync(new UpdateDeviceInformationRequest
             {
                 SerialNumber = "",
+                NewPartNumber = "PN-BEAT-5678-REV2",
                 Username = "pcaw.workflow.engine",
                 Org = "philips"
             });
@@ -121,4 +125,47 @@ public class PcawUpdateDeviceTests
             result!.Success.Should().BeFalse();
         });
     }
+
+    [Fact(DisplayName = "PCAW: Receives error when new part number is missing")]
+    public async Task UpdateDeviceInformation_WithMissingNewPartNumber_ReturnsBadRequest()
+    {
+        // Arrange
+        _pactBuilder
+            .UponReceiving("a request from PCAW with missing new part number")
+            .Given("an update request with missing new part number")
+            .WithRequest(HttpMethod.Post, PactConstants.Endpoints.UpdateDeviceInformation)
+            .WithJsonBody(new
+            {
+                SerialNumber = "SN-PCAW-2024-100",
+                Username = "pcaw.workflow.engine",
+                Org = "philips"
+            })
+            .WillRespond()
+            .WithStatus(HttpStatusCode.BadRequest)
+            .WithHeader("Content-Type", "application/json; charset=utf-8")
+            .WithJsonBody(new
+            {
+                Success = false,
+                Message = "New part number is required."
+            });
+
+        await _pactBuilder.VerifyAsync(async ctx =>
+        {
+            // Act
+            var client = new NiopInventoryApiClient(new HttpClient { BaseAddress = ctx.MockServerUri });
+            var response = await client.UpdateDeviceInformationAsync(new UpdateDeviceInformationRequest
+            {
+                SerialNumber = "SN-PCAW-2024-100",
+                Username = "pcaw.workflow.engine",
+                Org = "philips"
+            });
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+            var result = await response.Content.ReadFromJsonAsync<UpdateDeviceInformationResponse>();
+            result.Should().NotBeNull();
+            result!.Success.Should().BeFalse();
+            result.Message.Should().Be("New part number is required.");
+         });
+   }
 }

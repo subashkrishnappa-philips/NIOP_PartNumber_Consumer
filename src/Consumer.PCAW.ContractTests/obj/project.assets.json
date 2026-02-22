@@ -1102,11 +1102,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\320309052\\NIOP_PARTNUMBERENDPOINTS_CONSUMER\\src\\Consumer.PCAW.ContractTests\\Consumer.PCAW.ContractTests.csproj",
+      "projectUniqueName": "c:\\Users\\320309052\\NIOP_PARTNUMBERENDPOINTS_CONSUMER\\src\\Consumer.PCAW.ContractTests\\Consumer.PCAW.ContractTests.csproj",
       "projectName": "Consumer.PCAW.ContractTests",
-      "projectPath": "C:\\Users\\320309052\\NIOP_PARTNUMBERENDPOINTS_CONSUMER\\src\\Consumer.PCAW.ContractTests\\Consumer.PCAW.ContractTests.csproj",
+      "projectPath": "c:\\Users\\320309052\\NIOP_PARTNUMBERENDPOINTS_CONSUMER\\src\\Consumer.PCAW.ContractTests\\Consumer.PCAW.ContractTests.csproj",
       "packagesPath": "C:\\Users\\320309052\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\320309052\\NIOP_PARTNUMBERENDPOINTS_CONSUMER\\src\\Consumer.PCAW.ContractTests\\obj\\",
+      "outputPath": "c:\\Users\\320309052\\NIOP_PARTNUMBERENDPOINTS_CONSUMER\\src\\Consumer.PCAW.ContractTests\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

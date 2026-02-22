@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Consumer.PCAW.ContractTests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+e39ee1ee28b7ba71030dad93b916f46d9cd29961")]
 [assembly: System.Reflection.AssemblyProductAttribute("Consumer.PCAW.ContractTests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Consumer.PCAW.ContractTests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
