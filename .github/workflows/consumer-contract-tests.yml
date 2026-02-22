@@ -1,0 +1,204 @@
+# ============================================================================
+# Consumer Contract Tests Pipeline - PCAW
+# ============================================================================
+#
+# This pipeline lives in the CONSUMER repository (NIOP_PARTNUMBERENDPOINTS_CONSUMER).
+# It is completely independent from the provider repository.
+#
+# Flow:
+#   1. Build & run consumer pact tests -> generates pact JSON
+#   2. Publish pact to Pact Broker (versioned by git SHA + branch)
+#   3. can-i-deploy check -> is it safe to deploy this consumer?
+#   4. Record deployment (on main branch merge)
+# ============================================================================
+
+name: "Consumer: PCAW Contract Tests"
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'src/**'
+      - '.github/workflows/consumer-contract-tests.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'src/**'
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '10.0.x'
+
+jobs:
+  # ==========================================================================
+  # Phase 1: Run consumer pact tests
+  # ==========================================================================
+  consumer-tests:
+    name: "PCAW - Pact Tests"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout consumer code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore, Build, and Test
+        run: |
+          dotnet test src/Consumer.PCAW.ContractTests/Consumer.PCAW.ContractTests.csproj \
+            --configuration Release \
+            --logger "trx;LogFileName=PCAW-results.trx" \
+            --results-directory ./test-results \
+            --verbosity normal
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: PCAW-test-results
+          path: ./test-results/
+          retention-days: 30
+
+      - name: Upload generated pact file
+        uses: actions/upload-artifact@v4
+        with:
+          name: PCAW-pact
+          path: ./pacts/PCAW-Consumer-NIOP-Beat-Inventory-Api.json
+          retention-days: 30
+
+  # ==========================================================================
+  # Phase 2: Publish pacts to the Pact Broker
+  # ==========================================================================
+  publish-pacts:
+    name: "Publish Pacts to Pact Broker"
+    runs-on: ubuntu-latest
+    needs: consumer-tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download pact artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: PCAW-pact
+          path: ./pacts/
+
+      - name: List pact files
+        run: |
+          echo "=== Generated Pact Files ==="
+          ls -la ./pacts/*.json 2>/dev/null || echo "No pact files found!"
+
+      - name: Install Pact CLI
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/pact-foundation/pact-ruby-standalone/master/install.sh | PACT_CLI_VERSION=v2.4.2 bash
+          echo "$HOME/pact/bin" >> $GITHUB_PATH
+
+      - name: Determine broker auth method
+        id: broker-auth
+        run: |
+          if [ -n "${{ secrets.PACT_BROKER_TOKEN }}" ]; then
+            echo "method=token" >> $GITHUB_OUTPUT
+          elif [ -n "${{ secrets.PACT_BROKER_USERNAME }}" ]; then
+            echo "method=basic" >> $GITHUB_OUTPUT
+          else
+            echo "method=none" >> $GITHUB_OUTPUT
+            echo "::warning::No Pact Broker credentials configured. Skipping publish."
+          fi
+
+      - name: Publish pacts to Pact Broker
+        if: steps.broker-auth.outputs.method != 'none'
+        run: |
+          CONSUMER_VERSION="${{ github.sha }}"
+          GIT_BRANCH="${{ github.ref_name }}"
+          BROKER_URL="${{ secrets.PACT_BROKER_BASE_URL }}"
+
+          AUTH_FLAGS=""
+          if [ "${{ steps.broker-auth.outputs.method }}" == "token" ]; then
+            AUTH_FLAGS="--broker-token=${{ secrets.PACT_BROKER_TOKEN }}"
+          else
+            AUTH_FLAGS="--broker-username=${{ secrets.PACT_BROKER_USERNAME }} --broker-password=${{ secrets.PACT_BROKER_PASSWORD }}"
+          fi
+
+          for pact_file in ./pacts/*.json; do
+            if [ -f "$pact_file" ]; then
+              FILENAME=$(basename "$pact_file")
+              echo "Publishing: $FILENAME"
+              pact-broker publish "$pact_file" \
+                --consumer-app-version="$CONSUMER_VERSION" \
+                --branch="$GIT_BRANCH" \
+                --broker-base-url="$BROKER_URL" \
+                $AUTH_FLAGS \
+                --tag-with-git-branch \
+                --verbose
+            fi
+          done
+
+  # ==========================================================================
+  # Phase 3: Can-I-Deploy check (on main/develop only)
+  # ==========================================================================
+  can-i-deploy:
+    name: "PCAW - Can I Deploy?"
+    runs-on: ubuntu-latest
+    needs: publish-pacts
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    steps:
+      - name: Install Pact CLI
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/pact-foundation/pact-ruby-standalone/master/install.sh | PACT_CLI_VERSION=v2.4.2 bash
+          echo "$HOME/pact/bin" >> $GITHUB_PATH
+
+      - name: Can PCAW-Consumer deploy?
+        run: |
+          BROKER_URL="${{ secrets.PACT_BROKER_BASE_URL }}"
+          AUTH_FLAGS=""
+          if [ -n "${{ secrets.PACT_BROKER_TOKEN }}" ]; then
+            AUTH_FLAGS="--broker-token=${{ secrets.PACT_BROKER_TOKEN }}"
+          else
+            AUTH_FLAGS="--broker-username=${{ secrets.PACT_BROKER_USERNAME }} --broker-password=${{ secrets.PACT_BROKER_PASSWORD }}"
+          fi
+
+          TARGET_ENV="production"
+          if [ "${{ github.ref_name }}" == "develop" ]; then
+            TARGET_ENV="staging"
+          fi
+
+          pact-broker can-i-deploy \
+            --pacticipant="PCAW-Consumer" \
+            --version="${{ github.sha }}" \
+            --to-environment="$TARGET_ENV" \
+            --broker-base-url="$BROKER_URL" \
+            $AUTH_FLAGS \
+            --retry-while-unknown=12 \
+            --retry-interval=10
+
+  # ==========================================================================
+  # Phase 4: Record deployment (main branch only)
+  # ==========================================================================
+  record-deployment:
+    name: "Record Consumer Deployment"
+    runs-on: ubuntu-latest
+    needs: can-i-deploy
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Install Pact CLI
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/pact-foundation/pact-ruby-standalone/master/install.sh | PACT_CLI_VERSION=v2.4.2 bash
+          echo "$HOME/pact/bin" >> $GITHUB_PATH
+
+      - name: Record PCAW-Consumer deployment
+        run: |
+          BROKER_URL="${{ secrets.PACT_BROKER_BASE_URL }}"
+          AUTH_FLAGS=""
+          if [ -n "${{ secrets.PACT_BROKER_TOKEN }}" ]; then
+            AUTH_FLAGS="--broker-token=${{ secrets.PACT_BROKER_TOKEN }}"
+          else
+            AUTH_FLAGS="--broker-username=${{ secrets.PACT_BROKER_USERNAME }} --broker-password=${{ secrets.PACT_BROKER_PASSWORD }}"
+          fi
+
+          pact-broker record-deployment \
+            --pacticipant="PCAW-Consumer" \
+            --version="${{ github.sha }}" \
+            --environment="production" \
+            --broker-base-url="$BROKER_URL" \
+            $AUTH_FLAGS || true
