@@ -48,7 +48,7 @@ public class PcawUpdateDeviceTests
             .WithJsonBody(new
             {
                 SerialNumber = "SN-PCAW-2024-100",
-               NewPartNumber = "PN-BEAT-5678-REV2",
+              // NewPartNumber = "PN-BEAT-5678-REV2",
                 Username = "pcaw.workflow.engine",
                 Org = "philips"
             })
@@ -69,7 +69,7 @@ public class PcawUpdateDeviceTests
             var response = await client.UpdateDeviceInformationAsync(new UpdateDeviceInformationRequest
             {
                 SerialNumber = "SN-PCAW-2024-100",
-               NewPartNumber = "PN-BEAT-5678-REV2",
+              // NewPartNumber = "PN-BEAT-5678-REV2",
                 Username = "pcaw.workflow.engine",
                 Org = "philips"
             });
@@ -93,7 +93,7 @@ public class PcawUpdateDeviceTests
             .WithJsonBody(new
             {
                 SerialNumber = "",
-                NewPartNumber = "PN-BEAT-5678-REV2",
+             //   NewPartNumber = "PN-BEAT-5678-REV2",
                 Username = "pcaw.workflow.engine",
                 Org = "philips"
             })
@@ -113,7 +113,7 @@ public class PcawUpdateDeviceTests
             var response = await client.UpdateDeviceInformationAsync(new UpdateDeviceInformationRequest
             {
                 SerialNumber = "",
-                NewPartNumber = "PN-BEAT-5678-REV2",
+            //    NewPartNumber = "PN-BEAT-5678-REV2",
                 Username = "pcaw.workflow.engine",
                 Org = "philips"
             });
