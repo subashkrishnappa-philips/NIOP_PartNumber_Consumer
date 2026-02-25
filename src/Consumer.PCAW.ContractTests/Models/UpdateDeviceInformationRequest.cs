@@ -16,8 +16,8 @@ public class UpdateDeviceInformationRequest
     /// <summary>
     /// The new part number to assign to the device.
     /// </summary>
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? NewPartNumber { get; set; }
+   // [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+   // public string? NewPartNumber { get; set; }
 
     /// <summary>
     /// The username of the person/system performing the update.
